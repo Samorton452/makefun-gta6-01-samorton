@@ -119,14 +119,36 @@ export function stageShot(G, name) {
   if (name === 'menu') {
     G.mode = 'menu';
     G.weather.timeOfDay = 17.5;
-    // Frame the marina pier and lighthouse at dusk. The menu camera orbits the
-    // city (radius 150, height 55, looking at the centre) and advances 0.125 rad
-    // during the 150 staging steps, so set the orbit to end near 195 deg: the
-    // camera then sits north-west of the centre looking south-east, and the pier
-    // and lighthouse land in the clear right-hand margin beside the menu card,
-    // with the sun out of frame. (Setting the camera here would be overwritten
-    // by the orbit on the first step, so the orbit angle is the lever.)
-    G.menuOrbit = 3.278;
+    // Frame the marina lighthouse at dusk. The menu camera orbits the city
+    // (radius 150, height 55) and advances 0.125 rad during the 150 staging
+    // steps, so set the orbit to end near 204 deg. NOTE: after the staging
+    // steps, main.js calls updateCamera once more (even in menu mode), which
+    // lerps the camera ~14% toward the chase position behind the player and
+    // re-aims it at the player (0,1.7,-40) — so the final camera is NOT the
+    // pure orbit camera. With that lerp, at 204 deg the lighthouse (tower top
+    // + upper red stripe + lamp room + beam) lands at ~96% width, ~20% height
+    // in the clear right-hand margin beside the menu card, over the sea, with
+    // the sun out of frame. The pier deck itself stays hidden behind the
+    // beachfront buildings from every orbit angle (ray-cast verified), so the
+    // marina reads via the lighthouse + sea + beach. (Setting the camera here
+    // would be overwritten by the orbit on the first step, so the orbit angle
+    // is the lever.)
+    G.menuOrbit = 3.436;
+    // The menu overlay dims the whole viewport by ~75-88% (a near-opaque dark
+    // gradient over the canvas), which buries the distant marina: the lighthouse
+    // is ~560 m away and already ~60% fogged, so after the overlay it has no
+    // contrast left against the sky. Lighten the overlay for the shot only —
+    // stageShot runs only on ?shot= URLs, so normal play is untouched — so the
+    // lighthouse and sea read through the margins. The menu card keeps its own
+    // near-opaque background, so the menu stays readable.
+    try {
+      if (typeof document !== 'undefined') {
+        const overlay = document.getElementById('menu');
+        if (overlay) overlay.style.background = 'linear-gradient(160deg, rgba(10,20,40,0.35), rgba(60,20,40,0.25))';
+      }
+    } catch (err) {
+      if (window.console) console.warn('[shots] menu overlay lighten failed:', err);
+    }
     return;
   }
 
