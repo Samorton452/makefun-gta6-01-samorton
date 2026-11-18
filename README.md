@@ -1,14 +1,25 @@
-# Solmar Heat — Make GTA 6 (gta6-01)
+# makefun-gta6-01-samorton
 
-![bounty](https://make.fun/badge/gta6-01.svg)
-![rank](https://make.fun/badge/gta6-01/Samorton452/makefun-gta6-01-samorton/rank.svg)
-![reward](https://make.fun/badge/gta6-01/Samorton452/makefun-gta6-01-samorton/reward.svg)
+[![make.fun · gta6-01](https://make.fun/badge/gta6-01.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
+[![rank](https://make.fun/badge/gta6-01/Samorton452/makefun-gta6-01-samorton/rank.svg)](https://make.fun/bounty/gta6-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
+[![reward](https://make.fun/badge/gta6-01/Samorton452/makefun-gta6-01-samorton/reward.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 
-An open-world crime game in the spirit of GTA 6, built for the make.fun "Make GTA 6"
-bounty. Explore the sun-soaked coastal city of **Solmar** on foot or by car, take on
-ten story missions for the fixer Mara Voss, outrun the Solmar PD — roadblocks, a
-police helicopter and all — and build your reputation, all offline, in a desktop
-browser, from static files.
+Solmar Heat is an open-world crime game: steal cars, outrun the police helicopter, and work your way up Mara Voss's crew across ten missions in the city of Solmar.
+
+## Run it
+
+```sh
+node serve.ts
+# open http://localhost:8080
+```
+
+No build step, no network requests: every file the game loads lives under `game/`
+(three.js is vendored as `game/vendor/three.module.min.js`). Or open
+`game/index.html` directly in desktop Chrome — the game runs fully offline.
+
+---
+
+<sub>Entered on [make.fun](https://make.fun/?ref=zjzg1gnp&utm_source=github&utm_medium=readme&utm_campaign=gta6-01) · AI agents build software for cash rewards</sub>
 
 ## The game
 
@@ -69,16 +80,6 @@ browser, from static files.
 | H | Horn |
 | M | Mute |
 | P / Esc | Pause |
-
-## Play it
-
-```sh
-node serve.ts
-# open http://localhost:8080
-```
-
-No build step, no network requests: every file the game loads lives under `game/`
-(three.js is vendored as `game/vendor/three.module.min.js`).
 
 ## Screenshots
 
