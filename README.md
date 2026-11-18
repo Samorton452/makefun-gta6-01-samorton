@@ -6,39 +6,50 @@
 
 An open-world crime game in the spirit of GTA 6, built for the make.fun "Make GTA 6"
 bounty. Explore the sun-soaked coastal city of **Solmar** on foot or by car, take on
-five story missions for the fixer Mara Voss, outrun the Solmar PD, and build your
-reputation — all offline, in a desktop browser, from static files.
+ten story missions for the fixer Mara Voss, outrun the Solmar PD — roadblocks, a
+police helicopter and all — and build your reputation, all offline, in a desktop
+browser, from static files.
 
 ## The game
 
 - **Free-roam 3D city** — a procedural grid of buildings, roads with markings,
-  sidewalks, a park, and a beach with the sea at the south edge. Day/night cycle
-  with sun and moon, streetlights after dark, and rain (press V).
-- **On foot** — third-person character, walk / run / sprint, jump, mouse-look
-  camera with pointer lock, building collision.
-- **Driving** — sedans, taxis, sports cars, trucks and police cruisers. Press E
-  near a car to steal it; arcade handling with braking, steering and collisions.
-- **Traffic & pedestrians** — cars drive the grid and turn at intersections;
-  pedestrians stroll the sidewalks and flee when scared.
+  sidewalks, two parks, a downtown tower district, and a marina pier with a
+  lighthouse and bobbing boats at the south edge. Day/night cycle with sun and
+  moon, streetlights after dark, and four weather states — clear, rain, fog and
+  storm with lightning and thunder (press V to cycle).
+- **On foot** — third-person character, walk / run / sprint on a stamina meter,
+  jump, mouse-look camera with pointer lock, building collision.
+- **Driving** — sedans, taxis, sports cars, trucks, muscle cars, vans, police
+  cruisers and the rare gold Sunset GT. Press E near a car to steal it; arcade
+  handling with braking, steering, handbrake drifts (Space in a car), collisions
+  and a damage model — cars smoke, then wreck and explode.
+- **Traffic & pedestrians** — cars drive the grid, turn at intersections, honk
+  when stuck, and thicken at rush hour; pedestrians stroll the sidewalks, wait
+  at crosswalks, hurry in the rain and flee when scared.
 - **Wanted system** — 0–5 stars. Stealing cars, hitting pedestrians, shooting
   and killing cops raise your heat. Police cars and foot cops chase and arrest;
-  lay low out of sight and the stars fade. Get busted or wasted and you wake up
-  poorer, but free.
-- **Combat** — fists and a pistol (click to shoot, R to reload), with muzzle
-  flash, tracers and impact particles.
-- **Missions & story** — five jobs for Mara Voss's crew: get wheels, run cab
-  fares, move a hot package, stop a rival crew's car, and rob the Solmar Trust
-  Bank. Objective markers, step-by-step briefings, cash rewards, replay from
-  the pause menu. Health and armour pickups are scattered around town.
-- **HUD** — health and armour bars, cash, wanted stars, weapon and ammo,
-  speedometer, clock and weather, a live minimap (roads, player arrow, mission
-  blip, police blips), and objective text.
-- **Sound** — everything synthesized with WebAudio: engine hum tied to speed,
-  sirens, gunshots, pickup blips, and two procedural radio stations (C to
-  switch, M to mute).
+  at 3 stars the PD sets up roadblocks ahead of you, at 4 stars a helicopter
+  circles overhead with a searchlight and your heat cannot fade. Lay low out of
+  sight and the stars fade. Get busted or wasted and you wake up poorer, but free.
+- **Combat** — fists, pistol, automatic SMG and a spread shotgun (Q or mouse
+  wheel to swap, R to reload), with muzzle flash, tracers and impact particles.
+  Weapon, ammo and cash pickups are scattered around town.
+- **Missions & story** — ten jobs for Mara Voss's crew: get wheels, run cab
+  fares, move a hot package, stop a rival crew's car, rob the Solmar Trust Bank,
+  shake down three shops, run a 90-second night delivery, hit four checkpoints
+  against the clock, survive a 5-star heat wave, and steal the Sunset GT from
+  Rico's crew. Objective markers with distances, mission timers, cash rewards,
+  replay from the pause menu, and an autosave after every completed job.
+- **HUD** — health, armour and stamina bars, cash, wanted stars, weapon and
+  ammo with owned-weapon chips, speedometer, clock, weather and district, a live
+  minimap (roads, player arrow, mission blip, police blips, helicopter ring,
+  pickups; N zooms in on the player), and objective text with a mission timer.
+- **Sound** — everything synthesized with WebAudio: engine hum tied to speed
+  and car type, sirens, gunshots, pickup blips, thunder, skid noise, and three
+  procedural radio stations (C to switch, M to mute).
 - **Menus & saves** — main menu, pause menu with mission select, save/load via
-  localStorage, busted / wasted screens, and an end screen when all five
-  missions are done.
+  localStorage (v2 format: weapons, ammo, station, weather, minimap zoom),
+  busted / wasted screens, and an end screen when all ten missions are done.
 
 ## Controls
 
@@ -46,14 +57,15 @@ reputation — all offline, in a desktop browser, from static files.
 | --- | --- |
 | W A S D | Move / drive |
 | Mouse | Look (click the game to lock the pointer) |
-| Shift | Sprint |
-| Space | Jump |
+| Shift | Sprint (drains stamina) |
+| Space | Jump / handbrake drift while driving |
 | E | Enter / exit car |
 | Click | Shoot / punch |
-| Q | Swap weapon (fists / pistol) |
+| Q / mouse wheel | Swap weapon (fists / pistol / SMG / shotgun) |
 | R | Reload |
-| C | Radio station |
-| V | Toggle rain |
+| C | Radio station (3 stations) |
+| V | Cycle weather (clear → rain → fog → storm) |
+| N | Minimap zoom |
 | H | Horn |
 | M | Mute |
 | P / Esc | Pause |
@@ -70,9 +82,10 @@ No build step, no network requests: every file the game loads lives under `game/
 
 ## Screenshots
 
-`1-cover.jpg` — driving downtown with the HUD, minimap and a 2-star wanted level.
-`2-chase.jpg` — a 4-star police chase at dusk. `3-mission.jpg` — the Hot Package
-mission in progress. `4-menu.jpg` — the main menu over the city.
+`1-cover.jpg` — driving a muscle car downtown with the HUD, minimap and a 2-star
+wanted level. `2-chase.jpg` — the Heat Wave mission: 5 stars, helicopter overhead
+at dusk. `3-mission.jpg` — the Deadline checkpoint race in progress.
+`4-menu.jpg` — the main menu over the marina pier and lighthouse at dusk.
 
 All names, characters, places and story beats are original — no Rockstar/GTA
 names, no real brands, no copied assets.

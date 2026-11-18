@@ -1,10 +1,13 @@
-// Pedestrians: low-poly people who stroll the sidewalks, cross at intersections and flee
-// when scared (gunshots, a car bearing down, or a nearby crime). Some carry cash when bumped.
+// Pedestrians v2: low-poly people who stroll the sidewalks, wait at crosswalks and
+// cross at intersections, and flee when scared (gunshots, a car bearing down, or a
+// nearby crime). Some carry cash when bumped. v2 adds variety — hats, bags, heights —
+// a waiting state at crossings, and a faster walk in the rain.
 import * as THREE from 'three';
 
-const SHIRTS = [0xc25a4a, 0x4a7ac2, 0x53a05a, 0xd8b13c, 0x8a5fc2, 0xe0e0e0, 0x333333, 0xd97aa0];
-const PANTS = [0x2c2f36, 0x4a3a2c, 0x3a4a5a, 0x5a5a5a];
+const SHIRTS = [0xc25a4a, 0x4a7ac2, 0x53a05a, 0xd8b13c, 0x8a5fc2, 0xe0e0e0, 0x333333, 0xd97aa0, 0x3a9e8a, 0xb07a3a];
+const PANTS = [0x2c2f36, 0x4a3a2c, 0x3a4a5a, 0x5a5a5a, 0x6b4a2f];
 const SKINS = [0xc98e6b, 0x8a5a3b, 0xe8b98a, 0x6b4423];
+const HATS = [0x2e6fc2, 0xc22e2e, 0xd8b13c, 0x222222, 0x8a5fc2];
 
 function buildPedModel(random) {
   const group = new THREE.Group();
@@ -18,6 +21,23 @@ function buildPedModel(random) {
   const head = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.32), skin);
   head.position.y = 1.64;
   group.add(head);
+  // Variety: about a third wear a hat, a quarter carry a bag; heights differ.
+  if (random() < 0.34) {
+    const hat = new THREE.Mesh(
+      new THREE.BoxGeometry(0.38, 0.1, 0.36),
+      new THREE.MeshStandardMaterial({ color: HATS[Math.floor(random() * HATS.length)], roughness: 0.9 }),
+    );
+    hat.position.y = 1.86;
+    group.add(hat);
+  }
+  if (random() < 0.25) {
+    const bag = new THREE.Mesh(
+      new THREE.BoxGeometry(0.3, 0.4, 0.14),
+      new THREE.MeshStandardMaterial({ color: 0x6b4a2f, roughness: 0.95 }),
+    );
+    bag.position.set(0, 1.15, -0.24);
+    group.add(bag);
+  }
   const parts = {};
   const armGeo = new THREE.BoxGeometry(0.15, 0.62, 0.15);
   const legGeo = new THREE.BoxGeometry(0.19, 0.76, 0.19);
@@ -36,6 +56,8 @@ function buildPedModel(random) {
     parts[side < 0 ? 'legL' : 'legR'] = leg;
   }
   group.userData.parts = parts;
+  const scale = 0.92 + random() * 0.16;
+  group.scale.set(scale, scale, scale);
   return group;
 }
 
@@ -56,8 +78,9 @@ export function createPedestrians(scene, city, random, count) {
       pos: model.position,
       yaw: Math.random() * Math.PI * 2,
       speed: 1.2 + random() * 1.1,
-      state: 'walk', // walk | flee | down
+      state: 'walk', // walk | flee | down | wait
       fleeTimer: 0,
+      waitTimer: 0,
       animTime: random() * 10,
       health: 50,
       target: null,
@@ -79,10 +102,21 @@ export function scarePeds(peds, x, z, radius) {
   }
 }
 
-export function stepPedestrians(peds, dt, city, playerPos, playerSpeed) {
+/** One pedestrian step. isRaining makes them hurry along. */
+export function stepPedestrians(peds, dt, city, playerPos, playerSpeed, isRaining = false) {
   for (const ped of peds) {
     if (ped.state === 'down') {
       ped.model.rotation.x = THREE.MathUtils.lerp(ped.model.rotation.x, -Math.PI / 2, dt * 4);
+      continue;
+    }
+    if (ped.state === 'wait') {
+      // Paused at a crossing, looking both ways, then steps out.
+      ped.waitTimer -= dt;
+      ped.model.rotation.y = ped.yaw + Math.sin(ped.waitTimer * 6) * 0.5;
+      if (ped.waitTimer <= 0) {
+        ped.state = 'walk';
+        ped.retarget = 0;
+      }
       continue;
     }
     if (ped.state === 'flee') {
@@ -102,6 +136,13 @@ export function stepPedestrians(peds, dt, city, playerPos, playerSpeed) {
         ped.retarget = 2 + Math.random() * 4;
         // Keep to the grid: pick one of the four axis directions.
         ped.yaw = Math.floor(Math.random() * 4) * (Math.PI / 2);
+        // Sometimes pause at a crossing before stepping out.
+        const nearCrossX = Math.abs(ped.pos.x - city.nearestStreet(ped.pos.x));
+        const nearCrossZ = Math.abs(ped.pos.z - city.nearestStreet(ped.pos.z));
+        if ((nearCrossX < 3 || nearCrossZ < 3) && Math.random() < 0.3) {
+          ped.state = 'wait';
+          ped.waitTimer = 0.8 + Math.random() * 1.4;
+        }
       }
       // A fast car coming at the ped makes them flee.
       if (playerPos && playerSpeed > 12) {
@@ -112,15 +153,16 @@ export function stepPedestrians(peds, dt, city, playerPos, playerSpeed) {
           ped.yaw = Math.atan2(ped.pos.x - playerPos.x, ped.pos.z - playerPos.z);
         }
       }
-      const nx = ped.pos.x + Math.sin(ped.yaw) * ped.speed * dt;
-      const nz = ped.pos.z + Math.cos(ped.yaw) * ped.speed * dt;
+      const walkSpeed = ped.speed * (isRaining ? 1.45 : 1);
+      const nx = ped.pos.x + Math.sin(ped.yaw) * walkSpeed * dt;
+      const nz = ped.pos.z + Math.cos(ped.yaw) * walkSpeed * dt;
       if (city.collides(nx, nz, 0.5) || Math.abs(nx) > 335 || Math.abs(nz) > 335) {
         ped.yaw += Math.PI / 2;
       } else {
         ped.pos.x = nx;
         ped.pos.z = nz;
       }
-      ped.animTime += dt * 7;
+      ped.animTime += dt * (isRaining ? 10 : 7);
     }
     const parts = ped.model.userData.parts;
     const swing = Math.sin(ped.animTime) * (ped.state === 'flee' ? 0.85 : 0.5);

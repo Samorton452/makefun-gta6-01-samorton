@@ -1,6 +1,7 @@
-// Keyboard and mouse input for Solmar Heat.
-// Held keys are read every frame; one-shot presses (enter car, reload, pause, ...) are queued
-// as bit flags and taken once by the loop, so a press between two frames is never lost.
+// Keyboard and mouse input for Solmar Heat v2.
+// Held keys are read every frame; one-shot presses (enter car, reload, pause, ...) are
+// queued as bit flags and taken once by the loop, so a press between two frames is never
+// lost. The mouse wheel cycles weapons, like Q.
 import { KEYS } from './config.js';
 
 export const ACTION_ENTER_CAR = 1;
@@ -14,6 +15,7 @@ export const ACTION_WEATHER = 128;
 export const ACTION_HORN = 256;
 export const ACTION_CONFIRM = 512;
 export const ACTION_SHOOT = 1024;
+export const ACTION_MINIMAP_ZOOM = 2048;
 
 const ONE_SHOT = new Map([
   [KEYS.enterCar, ACTION_ENTER_CAR],
@@ -25,6 +27,7 @@ const ONE_SHOT = new Map([
   [KEYS.mute, ACTION_MUTE],
   [KEYS.weather, ACTION_WEATHER],
   [KEYS.horn, ACTION_HORN],
+  [KEYS.minimapZoom, ACTION_MINIMAP_ZOOM],
 ]);
 
 export function createInput(canvas) {
@@ -71,6 +74,11 @@ export function createInput(canvas) {
   window.addEventListener('mouseup', (event) => {
     if (event.button === 0) mouseDown = false;
   });
+  // Mouse wheel cycles the weapon, same as Q.
+  canvas.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    actions |= ACTION_WEAPON;
+  }, { passive: false });
 
   return {
     isDown(code) {

@@ -1,3 +1,7 @@
+# Solmar Heat build output and local scratch (never committed).
 out/
 node_modules/
 .DS_Store
+# Local tooling logs and temp captures.
+*.log
+*.tmp

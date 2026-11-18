@@ -1,5 +1,5 @@
-// Solmar Heat: my gta6-01 entry — a 3D open-world crime game (three.js, offline, no build
-// step). The game is this directory's game/ folder; this program copies game/ and
+// Solmar Heat v2: my gta6-01 entry — a 3D open-world crime game (three.js, offline, no
+// build step). The game is this directory's game/ folder; this program copies game/ and
 // screenshots/ beside this file to /output and writes /output/dossier.json with the vendored
 // make.fun library. Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
@@ -8,15 +8,14 @@
 // game/ folder, plain static files a desktop browser loads offline (game/index.html and its ES
 // modules, no library and no network request), and the program hands it in. It copies game/ and
 // screenshots/ from beside this file to /output and writes /output/dossier.json, the summary the
-// judge reads, with the vendored make.fun library. Only the plumbing, not an open world: Block
-// Dodger, a plain 2D canvas game where a paddle dodges falling blocks and catches coins, with a
-// title screen, score, lives and levels, game over and restart, flat colours and no sound. Build
-// your own open-world crime game in its place (three.js or any library you vendor under game/),
-// put your 3 or 4 PNG or JPEG screenshots in screenshots/ (the first by name is the cover) and run it.
+// judge reads, with the vendored make.fun library.
 //
-// Serve it locally with `node serve.ts`, then open http://localhost:8080.
-// Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
-//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+// v2 of the game (this commit): ten story missions for Mara Voss's crew, eight drivable
+// car types including the rare Sunset GT, four weapons (fists, pistol, SMG, shotgun),
+// a police helicopter and roadblocks at high wanted levels, a marina pier with a
+// lighthouse, a downtown tower district, four weather states, sprint stamina, a zoomed
+// minimap, and a v2 save format. All original names, art and story — no Rockstar/GTA
+// names, no real brands, no copied assets.
 
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

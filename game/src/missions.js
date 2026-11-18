@@ -1,9 +1,12 @@
-// Story missions for Solmar Heat: five jobs for the fixer Mara Voss, each a chain of steps
-// with an objective marker, a timer where it matters, and a cash reward. Plus a free-roam
-// side activity (taxi fares) the player can run from the pause menu.
+// Story missions for Solmar Heat v2: ten jobs for the fixer Mara Voss, each a chain of
+// steps with an objective marker, a timer where it matters, and a cash reward.
+// Step types: enterCar, goto, escape, chase, wait, timed (goto against the clock),
+// survive (hold out at high wanted for N seconds), collect (visit N spots), steal
+// (take a specific car). Timed steps fail when the clock runs out.
 // All characters, places and story beats are original.
 import * as THREE from 'three';
 import { MISSION_REWARDS } from './config.js';
+import { createCar } from './vehicles.js';
 
 // Mission spots on the map (streets are at -320..320 in steps of 80).
 const SPOTS = {
@@ -15,6 +18,12 @@ const SPOTS = {
   safehouse: { x: -240, z: -240 },
   plaza: { x: 0, z: 0 },
   beachBar: { x: 80, z: 280 },
+  marina: { x: -160, z: 320 },
+  lighthouse: { x: -160, z: 400 },
+  tower: { x: -80, z: -240 },
+  airport: { x: 240, z: -240 },
+  eastPark: { x: 200, z: -160 },
+  northGate: { x: 0, z: -320 },
 };
 
 const MISSIONS = [
@@ -73,6 +82,73 @@ const MISSIONS = [
       { type: 'escape', target: SPOTS.safehouse, text: 'Escape to the safehouse and lose the cops', radius: 10 },
     ],
   },
+  {
+    id: 6,
+    title: 'Shake Down',
+    giver: 'Eddie Kwan',
+    brief: 'Three shops on Marina Row owe the crew protection money. Swing by each one and collect — politely, but firmly.',
+    steps: [
+      {
+        type: 'collect',
+        targets: [
+          { x: 240, z: -160, text: 'Collect from the corner store on Marina Row' },
+          { x: 160, z: 0, text: 'Collect from the surf shop' },
+          { x: 240, z: 160, text: 'Collect from the diner' },
+        ],
+        text: 'Collect protection money (0/3)',
+        radius: 9,
+      },
+    ],
+  },
+  {
+    id: 7,
+    title: 'Night Run',
+    giver: 'Mara Voss',
+    brief: 'A boat is coming in at the marina after dark. Grab the cargo off the pier and run it to the beach bar — you have 90 seconds before the harbour patrol locks the docks down.',
+    steps: [
+      { type: 'goto', target: SPOTS.marina, text: 'Reach the marina pier', radius: 10 },
+      { type: 'timed', target: SPOTS.beachBar, seconds: 90, text: 'Deliver the cargo to the beach bar — fast!', radius: 10, onStart: 'heat' },
+    ],
+  },
+  {
+    id: 8,
+    title: 'Deadline',
+    giver: 'Mara Voss',
+    brief: 'A buyer is waiting at the north gate and the clock is running. Hit all four checkpoints across town in 75 seconds — miss one and the deal is dead.',
+    steps: [
+      {
+        type: 'timed',
+        targets: [
+          { x: -240, z: 80, text: 'Checkpoint 1 — Old Town' },
+          { x: 80, z: -240, text: 'Checkpoint 2 — Downtown' },
+          { x: 240, z: 80, text: 'Checkpoint 3 — Marina Row' },
+          { x: 0, z: -320, text: 'Checkpoint 4 — the north gate' },
+        ],
+        seconds: 75,
+        text: 'Hit the checkpoints (0/4)',
+        radius: 10,
+      },
+    ],
+  },
+  {
+    id: 9,
+    title: 'Heat Wave',
+    giver: 'Mara Voss',
+    brief: 'The whole Solmar PD is on you — five stars, helicopter overhead. Survive 90 seconds of heat and prove you cannot be caught.',
+    steps: [
+      { type: 'survive', seconds: 90, text: 'Survive the heat — stay alive for 90 seconds!', onStart: 'heat5' },
+    ],
+  },
+  {
+    id: 10,
+    title: 'King of Solmar',
+    giver: 'Mara Voss',
+    brief: 'The Sunset GT — the rarest car on the coast — is parked at the marina, and Rico’s crew is guarding it. Steal it, lose the chase, and bring it home to the garage. Do this, and the city is yours.',
+    steps: [
+      { type: 'steal', carType: 'gt', text: 'Steal the Sunset GT at the marina (press E)', onStart: 'heat3' },
+      { type: 'goto', target: SPOTS.garage, text: 'Bring the GT to the garage', radius: 10 },
+    ],
+  },
 ];
 
 export function createMissions(scene) {
@@ -101,8 +177,11 @@ export function createMissions(scene) {
     marker: markerGroup,
     markerPos: null, // {x, z} or null
     timer: 0, // step countdown for 'wait' steps
+    timeLeft: null, // seconds left on a timed/survive step (HUD reads this)
     rival: null, // the rival car for mission 4
+    rivals: [], // rival cars for mission 10
     rivalHealth: 100,
+    gtCar: null, // the Sunset GT for mission 10
     completed: [], // mission ids completed this save
     failedReason: null,
     fareTimer: 0,
@@ -114,12 +193,39 @@ export function startMission(missions, index, G) {
   missions.activeIndex = index;
   missions.stepIndex = 0;
   missions.timer = 0;
+  missions.timeLeft = null;
   missions.failedReason = null;
   if (index === 3) {
     // Mission 4: spawn the rival car near the player and make it flee.
     const rival = G.spawnRivalCar();
     missions.rival = rival;
     missions.rivalHealth = 100;
+  }
+  if (index === 9) {
+    // Mission 10: the Sunset GT waits at the marina; two rival sports cars guard it.
+    // A restart first clears the previous attempt's cars so only one GT exists.
+    if (missions.gtCar) {
+      G.scene.remove(missions.gtCar.model);
+      missions.gtCar.dead = true;
+      missions.gtCar = null;
+    }
+    for (const old of missions.rivals) {
+      G.scene.remove(old.model);
+      old.dead = true;
+    }
+    missions.rivals = [];
+    const gt = createCar(G.scene, 'gt', -160, 300, Math.PI / 2, 0xd8a020);
+    gt.driver = null;
+    G.parkedCars.push(gt);
+    G.allCars.push(gt);
+    missions.gtCar = gt;
+    missions.rivals = [];
+    for (const dx of [-14, 14]) {
+      const rival = createCar(G.scene, 'sports', -160 + dx, 280, 0, 0xc22e2e);
+      rival.driver = 'rival';
+      G.allCars.push(rival);
+      missions.rivals.push(rival);
+    }
   }
   enterStep(missions, G);
   return m;
@@ -130,17 +236,40 @@ function enterStep(missions, G) {
   const step = m.steps[missions.stepIndex];
   missions.markerPos = null;
   missions.timer = 0;
+  missions.timeLeft = null;
   if (step.type === 'goto' || step.type === 'escape') {
     missions.markerPos = step.target;
+  } else if (step.type === 'timed' && step.target) {
+    missions.markerPos = step.target;
+    missions.timeLeft = step.seconds;
+  } else if (step.type === 'timed' && step.targets) {
+    missions.markerPos = step.targets[0];
+    missions.timeLeft = step.seconds;
+    step.collected = 0;
+  } else if (step.type === 'collect') {
+    missions.markerPos = step.targets[0];
+    step.collected = 0;
   } else if (step.type === 'chase' && missions.rival) {
     missions.markerPos = null; // marker follows the rival car
+  } else if (step.type === 'survive') {
+    missions.timeLeft = step.seconds;
+  } else if (step.type === 'steal' && missions.gtCar) {
+    missions.markerPos = { x: missions.gtCar.pos.x, z: missions.gtCar.pos.z };
   }
   if (step.onStart === 'heat') {
     G.police.wanted = Math.max(G.police.wanted, 2);
     G.audio.startSiren();
   }
+  if (step.onStart === 'heat3') {
+    G.police.wanted = Math.max(G.police.wanted, 3);
+    G.audio.startSiren();
+  }
   if (step.onStart === 'heat4') {
     G.police.wanted = 4;
+    G.audio.startSiren();
+  }
+  if (step.onStart === 'heat5') {
+    G.police.wanted = 5;
     G.audio.startSiren();
   }
   if (step.type === 'wait') missions.timer = step.seconds;
@@ -187,6 +316,57 @@ export function stepMissions(missions, dt, G) {
   } else if (step.type === 'wait') {
     missions.timer -= dt;
     done = missions.timer <= 0;
+  } else if (step.type === 'survive') {
+    missions.timeLeft -= dt;
+    done = missions.timeLeft <= 0;
+  } else if (step.type === 'timed') {
+    missions.timeLeft -= dt;
+    if (missions.timeLeft <= 0) {
+      missions.failedReason = 'Out of time — the deal is dead.';
+      return 'failed';
+    }
+    if (step.target) {
+      const d = Math.hypot(playerPos.x - step.target.x, playerPos.z - step.target.z);
+      done = d < step.radius;
+    } else if (step.targets) {
+      const target = step.targets[step.collected || 0];
+      const d = Math.hypot(playerPos.x - target.x, playerPos.z - target.z);
+      if (d < step.radius) {
+        step.collected = (step.collected || 0) + 1;
+        G.audio.pickup();
+        G.player.cash += 100;
+        if (step.collected < step.targets.length) {
+          missions.markerPos = step.targets[step.collected];
+          updateMarker(missions);
+        } else {
+          done = true;
+        }
+      }
+    }
+  } else if (step.type === 'collect') {
+    const target = step.targets[step.collected || 0];
+    const d = Math.hypot(playerPos.x - target.x, playerPos.z - target.z);
+    if (d < step.radius) {
+      step.collected = (step.collected || 0) + 1;
+      G.audio.cash();
+      G.player.cash += 150;
+      if (step.collected < step.targets.length) {
+        missions.markerPos = step.targets[step.collected];
+        updateMarker(missions);
+      } else {
+        done = true;
+      }
+    }
+  } else if (step.type === 'steal') {
+    done = !!G.player.inCar && G.player.inCar === missions.gtCar;
+    if (done) {
+      // The rival guards give chase once the GT is taken.
+      for (const r of missions.rivals) {
+        if (!r.dead) r.driver = 'rival';
+      }
+      G.police.wanted = Math.max(G.police.wanted, 3);
+      G.audio.startSiren();
+    }
   } else if (step.type === 'chase') {
     const rival = missions.rival;
     if (!rival || rival.dead) {
@@ -228,6 +408,9 @@ export function stepMissions(missions, dt, G) {
     missions.markerPos = null;
     missions.marker.visible = false;
     missions.rival = null;
+    missions.rivals = [];
+    missions.gtCar = null;
+    missions.timeLeft = null;
     G.audio.success();
     G.audio.cash();
     return 'complete';
@@ -243,5 +426,8 @@ export function abortMission(missions) {
   missions.markerPos = null;
   missions.marker.visible = false;
   missions.rival = null;
+  missions.rivals = [];
+  missions.gtCar = null;
+  missions.timeLeft = null;
   missions.failedReason = null;
 }

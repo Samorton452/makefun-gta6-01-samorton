@@ -1,6 +1,6 @@
-// Synthesized sound for Solmar Heat: WebAudio only, no audio files.
-// Engine hum, sirens, gunshots, pickups, UI clicks and a procedural radio loop are all built
-// from oscillators and filtered noise.
+// Synthesized sound for Solmar Heat v2: WebAudio only, no audio files.
+// Engine hum (pitched per car type), sirens, gunshots, pickups, UI clicks, thunder
+// and a procedural radio loop are all built from oscillators and filtered noise.
 export function createAudio() {
   let ctx = null;
   let master = null;
@@ -8,16 +8,20 @@ export function createAudio() {
   let engineOsc = null;
   let engineGain = null;
   let engineFilter = null;
+  let engineType = 'sedan';
   let sirenOsc = null;
   let sirenGain = null;
   let radioTimer = null;
   let radioStep = 0;
   let station = 0;
+  let skidCooldown = 0;
 
-  // Two invented radio stations: a laid-back coastal groove and a faster night drive beat.
+  // Three invented radio stations: a laid-back coastal groove, a faster night
+  // drive beat, and a slow smooth-jazz talk station for cruising the beach.
   const STATIONS = [
     { name: 'SOLMAR FM 88.2 — Coast Groove', bpm: 96, bass: [0, 0, 7, 0, 5, 0, 3, 7], lead: [0, 3, 5, 7, 10, 7, 5, 3] },
     { name: 'NIGHT DRIVE 101.5', bpm: 128, bass: [0, 0, 0, 3, 0, 0, 5, 3], lead: [0, 0, 7, 10, 12, 10, 7, 5] },
+    { name: 'SOLMAR TALK 94.7 — Smooth Jazz', bpm: 72, bass: [0, 5, 0, 3, 0, 7, 5, 0], lead: [0, 7, 10, 7, 5, 3, 0, 3] },
   ];
 
   function ensure() {
@@ -93,11 +97,15 @@ export function createAudio() {
     engineOsc.start();
   }
 
-  function setEngine(speed01, on) {
+  // Engine pitch follows the car type: the GT growls higher, the truck rumbles low.
+  const ENGINE_BASE = { sedan: 55, taxi: 52, sports: 62, truck: 42, police: 58, muscle: 48, van: 40, gt: 70 };
+  function setEngine(speed01, on, type) {
     if (!engineOsc || !engineGain) return;
+    if (type) engineType = type;
+    const base = ENGINE_BASE[engineType] || 55;
     const t = ctx.currentTime;
     engineGain.gain.setTargetAtTime(on ? 0.05 + speed01 * 0.09 : 0, t, 0.08);
-    engineOsc.frequency.setTargetAtTime(52 + speed01 * 130, t, 0.06);
+    engineOsc.frequency.setTargetAtTime(base + speed01 * 130, t, 0.06);
     engineFilter.frequency.setTargetAtTime(280 + speed01 * 900, t, 0.1);
   }
 
@@ -174,9 +182,28 @@ export function createAudio() {
     stationName() {
       return STATIONS[station].name;
     },
+    stationIndex() {
+      return station;
+    },
+    setStation(i) {
+      station = ((i % STATIONS.length) + STATIONS.length) % STATIONS.length;
+      if (radioTimer) {
+        stopRadio();
+        startRadio();
+      }
+      return STATIONS[station].name;
+    },
     shoot() {
       noise(0.14, 0.5, 1800);
       tone(180, 0.1, 'square', 0.25, 60);
+    },
+    smgShoot() {
+      noise(0.09, 0.32, 2200);
+      tone(220, 0.06, 'square', 0.16, 90);
+    },
+    shotgun() {
+      noise(0.3, 0.6, 900);
+      tone(120, 0.18, 'square', 0.3, 40);
     },
     punch() {
       noise(0.08, 0.3, 500);
@@ -204,6 +231,15 @@ export function createAudio() {
     },
     crash() {
       noise(0.25, 0.4, 900);
+    },
+    skid() {
+      // Throttled by the caller (a few per second at most).
+      noise(0.16, 0.16, 3200, 'highpass');
+    },
+    thunder() {
+      // A low rolling rumble, a beat after the lightning flash.
+      noise(1.4, 0.35, 220);
+      window.setTimeout(() => noise(0.9, 0.22, 160), 260);
     },
     busted() {
       [392, 330, 262].forEach((f, i) => window.setTimeout(() => tone(f, 0.22, 'sawtooth', 0.16), i * 160));

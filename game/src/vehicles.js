@@ -1,7 +1,9 @@
-// Vehicles: low-poly car models built from boxes, arcade driving, enter/exit.
-// Car types: sedan, taxi, sports, truck, police. Traffic and police cars reuse these models.
+// Vehicles v2: low-poly car models built from boxes, arcade driving with drift,
+// enter/exit, and a simple damage model (cars smoke, then wreck).
+// Car types: sedan, taxi, sports, truck, police, muscle, van, gt (the rare Sunset GT).
+// Traffic and police cars reuse these models.
 import * as THREE from 'three';
-import { CAR } from './config.js';
+import { CAR, CAR_HEALTH } from './config.js';
 
 const CAR_COLORS = {
   sedan: [0x4a6fa5, 0x8a2f2f, 0x3f5a46, 0x777777, 0xb0a06a],
@@ -9,6 +11,9 @@ const CAR_COLORS = {
   sports: [0xc22e2e, 0x222222, 0xd8d8d8, 0x2e6fc2],
   truck: [0x5a5a5a, 0x7a4a2e, 0x3e5a7a],
   police: [0x11151a],
+  muscle: [0x1f6b3a, 0x8a5a1f, 0x5a1f6b, 0xb0b0b0],
+  van: [0xd8d2c0, 0x4a6fa5, 0x8a2f2f],
+  gt: [0xd8a020, 0x111111],
 };
 
 const CAR_SIZE = {
@@ -17,6 +22,9 @@ const CAR_SIZE = {
   sports: { w: 2.0, l: 4.2, h: 0.62 },
   truck: { w: 2.2, l: 6.0, h: 1.1 },
   police: { w: 1.9, l: 4.5, h: 0.75 },
+  muscle: { w: 2.0, l: 4.6, h: 0.8 },
+  van: { w: 2.1, l: 5.2, h: 1.5 },
+  gt: { w: 2.1, l: 4.4, h: 0.58 },
 };
 
 function buildCarModel(type, color) {
@@ -31,8 +39,8 @@ function buildCarModel(type, color) {
   body.castShadow = true;
   group.add(body);
 
-  const cabinH = type === 'truck' ? 0.9 : 0.55;
-  const cabinL = type === 'truck' ? 1.4 : size.l * 0.5;
+  const cabinH = type === 'truck' || type === 'van' ? 0.9 : 0.55;
+  const cabinL = type === 'truck' ? 1.4 : type === 'van' ? size.l * 0.62 : size.l * 0.5;
   const cabin = new THREE.Mesh(new THREE.BoxGeometry(size.w * 0.86, cabinH, cabinL), glassMat);
   cabin.position.set(0, 0.55 + size.h + cabinH / 2 - 0.05, type === 'truck' ? size.l / 2 - cabinL / 2 - 0.3 : -size.l * 0.06);
   cabin.castShadow = true;
@@ -43,6 +51,43 @@ function buildCarModel(type, color) {
     bed.position.set(0, 0.55 + size.h + 0.3, -size.l * 0.22);
     bed.castShadow = true;
     group.add(bed);
+  }
+  if (type === 'van') {
+    // Sliding side door panel + roof rack.
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.9, 1.6), new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 }));
+    door.position.set(size.w / 2 + 0.01, 1.1, 0.2);
+    group.add(door);
+    const rack = new THREE.Mesh(new THREE.BoxGeometry(size.w * 0.7, 0.1, size.l * 0.5), darkMat);
+    rack.position.set(0, 0.55 + size.h + cabinH + 0.05, 0);
+    group.add(rack);
+  }
+  if (type === 'muscle') {
+    // Hood scoop + rear spoiler: the classic street-racer look.
+    const scoop = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.22, 0.9), darkMat);
+    scoop.position.set(0, 0.55 + size.h + 0.11, size.l * 0.22);
+    group.add(scoop);
+    const spoiler = new THREE.Mesh(new THREE.BoxGeometry(size.w * 0.9, 0.08, 0.35), darkMat);
+    spoiler.position.set(0, 0.55 + size.h + 0.35, -size.l / 2 + 0.25);
+    group.add(spoiler);
+    for (const sx of [-1, 1]) {
+      const strut = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.3, 0.08), darkMat);
+      strut.position.set(sx * (size.w / 2 - 0.3), 0.55 + size.h + 0.18, -size.l / 2 + 0.25);
+      group.add(strut);
+    }
+  }
+  if (type === 'gt') {
+    // The Sunset GT: low, wide, gold, with a big rear wing and side skirts.
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(size.w * 0.95, 0.07, 0.5), darkMat);
+    wing.position.set(0, 0.55 + size.h + 0.5, -size.l / 2 + 0.3);
+    group.add(wing);
+    for (const sx of [-1, 1]) {
+      const strut = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.45, 0.07), darkMat);
+      strut.position.set(sx * (size.w / 2 - 0.35), 0.55 + size.h + 0.26, -size.l / 2 + 0.3);
+      group.add(strut);
+      const skirt = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.22, size.l * 0.7), darkMat);
+      skirt.position.set(sx * (size.w / 2 + 0.02), 0.42, 0);
+      group.add(skirt);
+    }
   }
   if (type === 'taxi') {
     const sign = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.22, 0.4), new THREE.MeshStandardMaterial({ color: 0xf5d020, emissive: 0xaa8800, emissiveIntensity: 0.4 }));
@@ -79,19 +124,24 @@ function buildCarModel(type, color) {
     group.add(tail);
   }
 
-  // Wheels.
+  // Wheels (front pair steers visually).
   const wheelGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.28, 12);
   wheelGeo.rotateZ(Math.PI / 2);
   const wheels = [];
+  const frontWheels = [];
   for (const [wx, wz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
+    const holder = new THREE.Group();
+    holder.position.set(wx * (size.w / 2 - 0.1), 0.36, wz * (size.l / 2 - 0.85));
     const wheel = new THREE.Mesh(wheelGeo, darkMat);
-    wheel.position.set(wx * (size.w / 2 - 0.1), 0.36, wz * (size.l / 2 - 0.85));
     wheel.castShadow = true;
-    group.add(wheel);
+    holder.add(wheel);
+    group.add(holder);
     wheels.push(wheel);
+    if (wz > 0) frontWheels.push(holder);
   }
 
   group.userData.wheels = wheels;
+  group.userData.frontWheels = frontWheels;
   group.userData.size = size;
   return group;
 }
@@ -116,10 +166,14 @@ export function createCar(scene, type, x, z, yaw, color) {
     radius: Math.max(CAR_SIZE[type].w, CAR_SIZE[type].l) / 2,
     length: CAR_SIZE[type].l,
     width: CAR_SIZE[type].w,
-    driver: null, // 'player' | 'traffic' | 'police' | null (parked)
+    driver: null, // 'player' | 'traffic' | 'police' | 'rival' | null (parked)
     headlight: null,
     brakeLight: false,
     dead: false,
+    health: CAR_HEALTH,
+    smoking: false,
+    skidding: false,
+    smokeTimer: 0,
   };
   return car;
 }
@@ -137,22 +191,51 @@ export function addHeadlights(scene, car) {
   return spot;
 }
 
-/** Arcade driving step: throttle -1..1, steer -1..1. Collides with buildings via city. */
-export function driveCar(car, dt, throttle, steerInput, city, otherCars) {
+/**
+ * Damage a car (gunfire, ramming). Returns 'smoking' | 'wrecked' | null.
+ * The caller (main) handles the wreck aftermath — particles, sound, toast.
+ */
+export function damageCar(car, amount) {
+  if (car.dead) return null;
+  car.health -= amount;
+  if (car.health <= 0) {
+    car.health = 0;
+    car.dead = true;
+    car.speed = 0;
+    return 'wrecked';
+  }
+  if (car.health <= 45 && !car.smoking) {
+    car.smoking = true;
+    return 'smoking';
+  }
+  return null;
+}
+
+/**
+ * Arcade driving step: throttle -1..1, steer -1..1, handbrake for drift.
+ * Collides with buildings via city. Returns true when a wall was hit.
+ */
+export function driveCar(car, dt, throttle, steerInput, city, otherCars, handbrake = false) {
   const t = car.tune;
-  // Steering eases toward the input, less effective at speed.
+  // Steering eases toward the input, less effective at speed; the handbrake
+  // loosens the rear so hard turns slide (drift) instead of gripping.
+  const gripFactor = handbrake ? 0.45 : 1;
   const steerTarget = steerInput * t.steer * Math.max(0.35, 1 - Math.abs(car.speed) / (t.topSpeed * 1.6));
   car.steer += (steerTarget - car.steer) * Math.min(1, dt * 8);
-  car.yaw += car.steer * (car.speed / t.topSpeed) * dt * 2.2 * Math.sign(car.speed || 1);
+  car.yaw += car.steer * (car.speed / t.topSpeed) * dt * 2.2 * Math.sign(car.speed || 1) * (handbrake ? 1.35 : 1);
   if (throttle > 0) car.speed += t.accel * throttle * dt;
   else if (throttle < 0) {
     if (car.speed > 0.5) car.speed += t.brake * throttle * dt; // brake
     else car.speed += t.accel * 0.55 * throttle * dt; // reverse
   }
+  if (handbrake) car.speed -= car.speed * 1.4 * dt;
   // Drag + rolling resistance.
-  car.speed -= car.speed * 0.35 * dt;
+  car.speed -= car.speed * 0.35 * dt * gripFactor;
   if (Math.abs(car.speed) < 0.05 && throttle === 0) car.speed = 0;
   car.speed = Math.max(-t.topSpeed * 0.4, Math.min(t.topSpeed, car.speed));
+  // Drifting: hard steering at speed makes the tail step out.
+  car.skidding = handbrake && Math.abs(car.speed) > 10
+    || (Math.abs(car.steer) > 1.4 && Math.abs(car.speed) > 18);
 
   const nx = car.pos.x + Math.sin(car.yaw) * car.speed * dt;
   const nz = car.pos.z + Math.cos(car.yaw) * car.speed * dt;
@@ -165,7 +248,7 @@ export function driveCar(car, dt, throttle, steerInput, city, otherCars) {
   }
   car.pos.x = corrected.x;
   car.pos.z = corrected.z;
-  // Soft car-car collision: push apart, bleed speed.
+  // Soft car-car collision: push apart, bleed speed, damage both a little.
   if (otherCars) {
     for (const other of otherCars) {
       if (other === car || other.dead) continue;
@@ -181,8 +264,13 @@ export function driveCar(car, dt, throttle, steerInput, city, otherCars) {
         car.pos.z += uz * push;
         other.pos.x -= ux * push;
         other.pos.z -= uz * push;
+        const impact = Math.abs(car.speed - other.speed);
         car.speed *= 0.85;
         other.speed *= 0.85;
+        if (impact > 12) {
+          damageCar(car, impact * 0.4);
+          damageCar(other, impact * 0.4);
+        }
       }
     }
   }
@@ -192,6 +280,9 @@ export function driveCar(car, dt, throttle, steerInput, city, otherCars) {
   const wheels = car.model.userData.wheels;
   for (let i = 0; i < wheels.length; i += 1) {
     wheels[i].rotation.x += spin;
+  }
+  for (const holder of car.model.userData.frontWheels) {
+    holder.rotation.y = car.steer * 0.32;
   }
   // Body lean / pitch for feel.
   car.model.rotation.z = -car.steer * Math.min(1, Math.abs(car.speed) / 20) * 0.03;

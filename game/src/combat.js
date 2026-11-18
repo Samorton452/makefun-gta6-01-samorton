@@ -1,8 +1,10 @@
-// Combat: fists and a pistol. Shooting raycasts from the camera against peds, cops and cars;
-// hits flash a marker, knock peds down and raise the wanted level. Muzzle flash, tracers and
-// impact particles are simple meshes, no textures.
+// Combat v2: fists, a pistol, an automatic SMG and a spread shotgun. Shooting raycasts
+// from the camera against peds, cops and cars; hits flash a marker, knock peds down and
+// raise the wanted level. Cars take damage: they smoke, then wreck (and can explode).
+// Muzzle flash, tracers and impact particles are simple meshes, no textures.
 import * as THREE from 'three';
 import { WEAPONS } from './config.js';
+import { damageCar } from './vehicles.js';
 
 export function createCombat(scene) {
   // Muzzle flash: a small additive sprite at the gun.
@@ -33,6 +35,7 @@ export function createCombat(scene) {
     reloadTimer: 0,
     tracerIndex: 0,
     partIndex: 0,
+    smokeTimer: 0,
   };
 }
 
@@ -47,6 +50,13 @@ export function spawnParticles(combat, x, y, z, count, color) {
     p.vel.set((Math.random() - 0.5) * 6, Math.random() * 5 + 1, (Math.random() - 0.5) * 6);
     p.life = 0.5 + Math.random() * 0.3;
   }
+}
+
+/** A big orange explosion burst for a wrecked car. */
+export function spawnExplosion(combat, x, y, z) {
+  spawnParticles(combat, x, y, z, 26, 0xff7722);
+  spawnParticles(combat, x, y + 0.5, z, 14, 0xffcc33);
+  spawnParticles(combat, x, y, z, 10, 0x555555);
 }
 
 function fireTracer(combat, from, to) {
@@ -69,38 +79,10 @@ function muzzleAt(camera, player) {
   return pos.clone().add(dir.multiplyScalar(0.9)).add(new THREE.Vector3(0, -0.15, 0));
 }
 
-/**
- * Try to shoot. Returns an event string: 'shot' | 'dry' | 'reload' | 'melee' | null.
- * Applies damage to the first ped/cop/car hit and calls onHit(kind, target) for wanted/cash.
- */
-export function tryShoot(combat, player, camera, peds, cops, cars, dt, onHit) {
-  if (combat.cooldown > 0 || combat.reloadTimer > 0) return null;
-  const weapon = WEAPONS[player.weapon];
-  if (player.weapon === 'fists') {
-    combat.cooldown = weapon.rate;
-    // Melee: nearest ped/cop in front within range.
-    const px = player.pos.x + Math.sin(player.yaw) * 1.2;
-    const pz = player.pos.z + Math.cos(player.yaw) * 1.2;
-    for (const list of [peds, cops]) {
-      for (const t of list) {
-        if (t.state === 'down') continue;
-        if (Math.hypot(t.pos.x - px, t.pos.z - pz) < 1.6) {
-          damageTarget(t, weapon.damage, onHit, 'ped');
-          spawnParticles(combat, t.pos.x, 1.2, t.pos.z, 6, 0xffffff);
-          return 'melee';
-        }
-      }
-    }
-    return 'melee';
-  }
-  if (player.ammo <= 0) return 'dry';
-  player.ammo -= 1;
-  combat.cooldown = weapon.rate;
-  const origin = camera.getWorldPosition(new THREE.Vector3());
-  const dir = camera.getWorldDirection(new THREE.Vector3());
-  // Find the closest hit among peds, cops and cars (cylinder test).
+/** Raycast one shot along a direction; returns the closest hit or null. */
+function raycastHit(origin, dir, range, peds, cops, cars) {
   let best = null;
-  let bestDist = weapon.range;
+  let bestDist = range;
   const test = (list, kind) => {
     for (const t of list) {
       if (t.state === 'down' || t.dead) continue;
@@ -119,19 +101,79 @@ export function tryShoot(combat, player, camera, peds, cops, cars, dt, onHit) {
   test(peds, 'ped');
   test(cops, 'cop');
   test(cars, 'car');
-  const end = best ? origin.clone().add(dir.clone().multiplyScalar(bestDist)) : origin.clone().add(dir.clone().multiplyScalar(weapon.range));
+  return best;
+}
+
+/**
+ * Try to shoot. Returns an event string: 'shot' | 'dry' | 'reload' | 'melee' | null.
+ * Applies damage to the first ped/cop/car hit and calls onHit(kind, target, killed).
+ * onCarWrecked(car) fires when a car is destroyed by gunfire.
+ */
+export function tryShoot(combat, player, camera, peds, cops, cars, dt, onHit, onCarWrecked) {
+  if (combat.cooldown > 0 || combat.reloadTimer > 0) return null;
+  const weapon = WEAPONS[player.weapon];
+  if (player.weapon === 'fists') {
+    combat.cooldown = weapon.rate;
+    // Melee: nearest ped/cop in front within range, with a knockback shove.
+    const px = player.pos.x + Math.sin(player.yaw) * 1.2;
+    const pz = player.pos.z + Math.cos(player.yaw) * 1.2;
+    for (const list of [peds, cops]) {
+      for (const t of list) {
+        if (t.state === 'down') continue;
+        if (Math.hypot(t.pos.x - px, t.pos.z - pz) < 1.6) {
+          damageTarget(t, weapon.damage, onHit, 'ped');
+          // Shove the victim away from the player.
+          const d = Math.hypot(t.pos.x - player.pos.x, t.pos.z - player.pos.z) || 1;
+          t.pos.x += ((t.pos.x - player.pos.x) / d) * 1.2;
+          t.pos.z += ((t.pos.z - player.pos.z) / d) * 1.2;
+          spawnParticles(combat, t.pos.x, 1.2, t.pos.z, 6, 0xffffff);
+          return 'melee';
+        }
+      }
+    }
+    return 'melee';
+  }
+  const ammo = player.ammoMap[player.weapon];
+  if (!ammo || ammo.mag <= 0) return 'dry';
+  ammo.mag -= 1;
+  combat.cooldown = weapon.rate;
+  const origin = camera.getWorldPosition(new THREE.Vector3());
+  const baseDir = camera.getWorldDirection(new THREE.Vector3());
   const muzzle = muzzleAt(camera, player);
-  fireTracer(combat, muzzle, end);
   combat.flash.position.copy(muzzle);
   combat.flash.lookAt(camera.position);
   combat.flashMat.opacity = 1;
-  spawnParticles(combat, end.x, Math.max(0.3, end.y), end.z, 5, 0xffcc66);
-  if (best) {
-    if (best.kind === 'car') {
-      best.target.speed *= 0.7;
-      spawnParticles(combat, end.x, 1, end.z, 8, 0x888888);
-    } else {
-      damageTarget(best.target, weapon.damage, onHit, best.kind);
+
+  const pellets = weapon.pellets || 1;
+  for (let i = 0; i < pellets; i += 1) {
+    // Spread each pellet around the aim direction (shotgun fans out).
+    const dir = baseDir.clone();
+    if (weapon.spread) {
+      dir.x += (Math.random() - 0.5) * weapon.spread * 2;
+      dir.y += (Math.random() - 0.5) * weapon.spread;
+      dir.z += (Math.random() - 0.5) * weapon.spread * 2;
+      dir.normalize();
+    }
+    const best = raycastHit(origin, dir, weapon.range, peds, cops, cars);
+    const end = best
+      ? origin.clone().add(dir.clone().multiplyScalar(best.dist))
+      : origin.clone().add(dir.clone().multiplyScalar(weapon.range));
+    fireTracer(combat, muzzle, end);
+    spawnParticles(combat, end.x, Math.max(0.3, end.y), end.z, 4, 0xffcc66);
+    if (best) {
+      if (best.kind === 'car') {
+        const result = damageCar(best.target, weapon.damage);
+        spawnParticles(combat, end.x, 1, end.z, 8, 0x888888);
+        if (result === 'wrecked') {
+          spawnExplosion(combat, best.target.pos.x, 1, best.target.pos.z);
+          if (onCarWrecked) onCarWrecked(best.target);
+          if (onHit) onHit('car', best.target, true);
+        } else if (onHit) {
+          onHit('car', best.target, false);
+        }
+      } else {
+        damageTarget(best.target, weapon.damage, onHit, best.kind);
+      }
     }
   }
   return 'shot';
