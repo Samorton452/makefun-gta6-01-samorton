@@ -121,19 +121,19 @@ export function stageShot(G, name) {
     G.weather.timeOfDay = 17.5;
     // Frame the marina lighthouse at dusk. The menu camera orbits the city
     // (radius 150, height 55) and advances 0.125 rad during the 150 staging
-    // steps, so set the orbit to end near 204 deg. NOTE: after the staging
+    // steps, so set the orbit to end near 205 deg. NOTE: after the staging
     // steps, main.js calls updateCamera once more (even in menu mode), which
     // lerps the camera ~14% toward the chase position behind the player and
     // re-aims it at the player (0,1.7,-40) — so the final camera is NOT the
-    // pure orbit camera. With that lerp, at 204 deg the lighthouse (tower top
-    // + upper red stripe + lamp room + beam) lands at ~96% width, ~20% height
-    // in the clear right-hand margin beside the menu card, over the sea, with
-    // the sun out of frame. The pier deck itself stays hidden behind the
-    // beachfront buildings from every orbit angle (ray-cast verified), so the
-    // marina reads via the lighthouse + sea + beach. (Setting the camera here
-    // would be overwritten by the orbit on the first step, so the orbit angle
-    // is the lever.)
-    G.menuOrbit = 3.436;
+    // pure orbit camera. With that lerp, at 205 deg the lighthouse (tall striped
+    // tower + lamp room + beam, raised in v2.2 so it clears the rooftops) lands
+    // at ~96% width, ~20% height in the clear right-hand margin beside the menu
+    // card, over the sea, with the sun out of frame. The pier deck itself stays
+    // hidden behind the beachfront buildings from every orbit angle (ray-cast
+    // verified), so the marina reads via the lighthouse + sea + beach.
+    // (Setting the camera here would be overwritten by the orbit on the first
+    // step, so the orbit angle is the lever.)
+    G.menuOrbit = 3.461;
     // The menu overlay dims the whole viewport by ~75-88% (a near-opaque dark
     // gradient over the canvas), which buries the distant marina: the lighthouse
     // is ~560 m away and already ~60% fogged, so after the overlay it has no

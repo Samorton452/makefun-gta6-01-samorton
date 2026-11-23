@@ -1,10 +1,11 @@
-// Solmar Heat v2 — boot, the fixed-step loop, and the glue between every system:
-// driving (with drift and wrecks), crimes, police (roadblocks + helicopter), missions
-// (ten jobs), pickups (health, armour, weapons, ammo, cash), busted/wasted, save/load
-// and the screenshot staging. The game moves between menu / playing / paused / busted /
-// wasted / end.
+// Solmar Heat v2.2 — boot, the fixed-step loop, and the glue between every system:
+// driving (with drift, skid marks and wrecks), crimes, police (roadblocks +
+// helicopter), missions (twelve jobs), pickups (health, armour, weapons, ammo,
+// cash), hidden stash collectibles, garage repair pads, busted/wasted, save/load
+// and the screenshot staging. The game moves between menu / playing / paused /
+// busted / wasted / end.
 import * as THREE from 'three';
-import { STEP, WEAPONS, WEAPON_ORDER, WEATHER_ORDER, WEATHER_LABELS, MISSION_REWARDS } from './config.js';
+import { STEP, WEAPONS, WEAPON_ORDER, WEATHER_ORDER, WEATHER_LABELS, MISSION_REWARDS, REPAIR_RATE, REPAIR_COST_PER_HP } from './config.js';
 import { createRandom } from './random.js';
 import {
   createInput,
@@ -19,8 +20,9 @@ import { createCar, addHeadlights, driveCar, removeCar } from './vehicles.js';
 import { createTraffic, stepTraffic, trafficTarget, adjustTrafficCount } from './traffic.js';
 import { createPedestrians, stepPedestrians, scarePeds } from './pedestrians.js';
 import { createPolice, addWanted, stepPolice, clearPolice } from './police.js';
-import { createCombat, tryShoot, stepCombat, spawnParticles, spawnExplosion } from './combat.js';
+import { createCombat, tryShoot, stepCombat, spawnParticles, spawnExplosion, spawnSkidMark } from './combat.js';
 import { createMissions, startMission, stepMissions, abortMission } from './missions.js';
+import { createCollectibles, stepCollectibles } from './collectibles.js';
 import { createHud } from './hud.js';
 import { createMinimap } from './minimap.js';
 import { createWeather, stepWeather, isRaining } from './weather.js';
@@ -64,6 +66,7 @@ const peds = createPedestrians(scene, city, random, 34);
 const police = createPolice(scene);
 const combat = createCombat(scene);
 const missions = createMissions(scene);
+const collectibles = createCollectibles(scene);
 const weather = createWeather(scene);
 const hud = createHud();
 const minimap = createMinimap(document.getElementById('minimap'));
@@ -121,6 +124,7 @@ addPickup('cash', -80, 80); // garage
 
 const G = {
   scene, camera, renderer, city, player, traffic, peds, police, combat, missions,
+  collectibles,
   weather, hud, minimap, audio, input, parkedCars, allCars, pickups,
   mode: 'menu',
   time: 0,
@@ -128,6 +132,8 @@ const G = {
   minimapZoom: false,
   trafficTimer: 0,
   skidTimer: 0,
+  skidMarkTimer: 0,
+  repairToastTimer: 0,
   spawnRivalCar() {
     const px = player.pos.x;
     const pz = player.pos.z;
@@ -302,6 +308,7 @@ function exitCar() {
 /** The player's car was wrecked (rammed or shot to pieces): bail out on foot. */
 function wreckPlayerCar(car) {
   spawnExplosion(combat, car.pos.x, 1, car.pos.z);
+  player.shake = 1;
   audio.crash();
   audio.stopSiren();
   if (player.inCar === car) {
@@ -348,6 +355,7 @@ function onCarWrecked(car) {
     wreckPlayerCar(car);
   } else if (car.type === 'police') {
     addWanted(police, 1, audio);
+    player.shake = Math.max(player.shake, 0.7);
     hud.showToast('You blew up a police cruiser!', 2000);
   }
 }
@@ -427,10 +435,20 @@ function step(dt, actions) {
       audio.crash();
       spawnParticles(combat, car.pos.x, 1, car.pos.z, 6, 0xaaaaaa);
     }
-    // Drifting kicks up smoke and a skid sound.
+    // Drifting kicks up smoke and a skid sound, and leaves tyre marks.
     if (car.skidding) {
       G.skidTimer -= dt;
       spawnParticles(combat, car.pos.x, 0.4, car.pos.z, 2, 0xcccccc);
+      G.skidMarkTimer -= dt;
+      if (G.skidMarkTimer <= 0) {
+        const backX = car.pos.x - Math.sin(car.yaw) * 1.6;
+        const backZ = car.pos.z - Math.cos(car.yaw) * 1.6;
+        const sideX = Math.cos(car.yaw) * 0.8;
+        const sideZ = -Math.sin(car.yaw) * 0.8;
+        spawnSkidMark(combat, backX + sideX, backZ + sideZ, car.yaw);
+        spawnSkidMark(combat, backX - sideX, backZ - sideZ, car.yaw);
+        G.skidMarkTimer = 0.09;
+      }
       if (G.skidTimer <= 0) {
         audio.skid();
         G.skidTimer = 0.35;
@@ -559,9 +577,9 @@ function step(dt, actions) {
     const reward = MISSION_REWARDS[missions.completed.length - 1];
     hud.showToast(`Mission complete! +$${reward}`, 3500);
     writeSave(G); // autosave on every completed job
-    if (missions.completed.length >= 10) {
+    if (missions.completed.length >= 12) {
       G.mode = 'end';
-      hud.showEnd('YOU OWN SOLMAR', `All ten jobs done. Mara's crew runs the coast now — $${Math.floor(player.cash).toLocaleString()} in your pocket. Free roam continues from the menu.`);
+      hud.showEnd('YOU OWN SOLMAR', `All twelve jobs done. Mara's crew runs the coast now — $${Math.floor(player.cash).toLocaleString()} in your pocket. Free roam continues from the menu.`);
       announce('All missions complete.');
     } else {
       hud.renderMissionList(missions, (i) => startMissionFromMenu(i));
@@ -571,6 +589,36 @@ function step(dt, actions) {
     audio.fail();
     clearMissionCars();
     abortMission(missions);
+  }
+
+  // --- Hidden stashes + garage repair pads ---
+  stepCollectibles(collectibles, dt, G);
+  if (player.inCar) {
+    const car = player.inCar;
+    for (const pad of city.repairPads) {
+      const d = Math.hypot(car.pos.x - pad.x, car.pos.z - pad.z);
+      if (d < 7 && !car.dead && car.health < 100 && player.cash > 0) {
+        const heal = Math.min(REPAIR_RATE * dt, 100 - car.health);
+        const cost = heal * REPAIR_COST_PER_HP;
+        if (player.cash >= cost) {
+          car.health += heal;
+          player.cash -= cost;
+          if (car.health > 45) car.smoking = false;
+          G.repairToastTimer -= dt;
+          if (G.repairToastTimer <= 0) {
+            hud.showToast(`Repairing at ${pad.name}… $${REPAIR_COST_PER_HP.toFixed(2)}/hp`, 1200);
+            G.repairToastTimer = 2.5;
+          }
+        } else {
+          G.repairToastTimer -= dt;
+          if (G.repairToastTimer <= 0) {
+            hud.showToast('Not enough cash for repairs!', 1800);
+            G.repairToastTimer = 3;
+          }
+        }
+        break;
+      }
+    }
   }
 
   // --- Pickups ---

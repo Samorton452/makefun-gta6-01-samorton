@@ -74,6 +74,22 @@ export function createMinimap(canvas) {
           ctx.fill();
         }
       }
+      // Hidden stashes (green diamonds) — only the ones still out there.
+      if (G.collectibles) {
+        ctx.fillStyle = '#37d67a';
+        for (const s of G.collectibles.stashes) {
+          if (s.found) continue;
+          const mx = toMapX(s.x);
+          const mz = toMapZ(s.z);
+          ctx.beginPath();
+          ctx.moveTo(mx, mz - 4);
+          ctx.lineTo(mx + 4, mz);
+          ctx.lineTo(mx, mz + 4);
+          ctx.lineTo(mx - 4, mz);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
       // Mission marker (yellow diamond, pulsing).
       if (G.missions.markerPos) {
         const pulse = 6 + Math.sin(G.time * 5) * 2;

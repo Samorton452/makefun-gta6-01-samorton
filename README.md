@@ -4,7 +4,7 @@
 [![rank](https://make.fun/badge/gta6-01/Samorton452/makefun-gta6-01-samorton/rank.svg)](https://make.fun/bounty/gta6-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 [![reward](https://make.fun/badge/gta6-01/Samorton452/makefun-gta6-01-samorton/reward.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 
-Solmar Heat is an open-world crime game: steal cars, outrun the police helicopter, and work your way up Mara Voss's crew across ten missions in the city of Solmar.
+Solmar Heat is an open-world crime game: steal cars, outrun the police helicopter, and work your way up Mara Voss's crew across twelve missions in the city of Solmar — plus a harbour heist for the fixer Lena Cross.
 
 ## Run it
 
@@ -45,22 +45,29 @@ No build step, no network requests: every file the game loads lives under `game/
 - **Combat** — fists, pistol, automatic SMG and a spread shotgun (Q or mouse
   wheel to swap, R to reload), with muzzle flash, tracers and impact particles.
   Weapon, ammo and cash pickups are scattered around town.
-- **Missions & story** — ten jobs for Mara Voss's crew: get wheels, run cab
+- **Missions & story** — twelve jobs: ten for Mara Voss's crew — get wheels, run cab
   fares, move a hot package, stop a rival crew's car, rob the Solmar Trust Bank,
   shake down three shops, run a 90-second night delivery, hit four checkpoints
   against the clock, survive a 5-star heat wave, and steal the Sunset GT from
-  Rico's crew. Objective markers with distances, mission timers, cash rewards,
-  replay from the pause menu, and an autosave after every completed job.
+  Rico's crew — plus a harbour heist for the new fixer Lena Cross (crack the
+  warehouse vault, hold the room at 4 stars, escape to the marina) and a finale,
+  The Last Score: collect three vault keys across town, then a timed 90-second
+  run to the garage at 3 stars. Objective markers with distances, mission timers,
+  cash rewards, replay from the pause menu, and an autosave after every completed job.
 - **HUD** — health, armour and stamina bars, cash, wanted stars, weapon and
   ammo with owned-weapon chips, speedometer, clock, weather and district, a live
   minimap (roads, player arrow, mission blip, police blips, helicopter ring,
   pickups; N zooms in on the player), and objective text with a mission timer.
+  Eight hidden stash crates pay $250 each on foot — the objective line shows
+  how many you've found (Stashes n/8) and unfound stashes show as green
+  diamonds on the minimap. Park a damaged car on a teal REPAIR pad (crew
+  garage or downtown) to fix it for cash.
 - **Sound** — everything synthesized with WebAudio: engine hum tied to speed
   and car type, sirens, gunshots, pickup blips, thunder, skid noise, and three
   procedural radio stations (C to switch, M to mute).
 - **Menus & saves** — main menu, pause menu with mission select, save/load via
-  localStorage (v2 format: weapons, ammo, station, weather, minimap zoom),
-  busted / wasted screens, and an end screen when all ten missions are done.
+  localStorage (v2 format: weapons, ammo, station, weather, minimap zoom, found
+  stashes), busted / wasted screens, and an end screen when all twelve missions are done.
 
 ## Controls
 

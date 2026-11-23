@@ -127,13 +127,15 @@ export function createHud() {
       } else if (G.missions.completed.length > 0) {
         els.objective.style.display = 'block';
         els.objectiveTitle.textContent = 'Free roam';
-        els.objectiveText.textContent = 'Press P for missions, E to steal a car, Q to swap weapon.';
+        const stashLine = G.collectibles ? ` · Stashes ${G.collectibles.foundCount}/${G.collectibles.total}` : '';
+        els.objectiveText.textContent = `Press P for missions, E to steal a car, Q to swap weapon.${stashLine}`;
         els.objectiveDist.style.display = 'none';
         els.missionTimer.style.display = 'none';
       } else {
         els.objective.style.display = 'block';
         els.objectiveTitle.textContent = 'Welcome to Solmar';
-        els.objectiveText.textContent = 'Press P, pick a mission, and get to work. E steals a car.';
+        const stashLine = G.collectibles ? ` 8 hidden stashes pay $250 each.` : '';
+        els.objectiveText.textContent = `Press P, pick a mission, and get to work. E steals a car.${stashLine}`;
         els.objectiveDist.style.display = 'none';
         els.missionTimer.style.display = 'none';
       }

@@ -6,7 +6,7 @@
 // HUD can name where the player is standing.
 // Exports the collision boxes and the road graph the traffic, minimap and missions use.
 import * as THREE from 'three';
-import { PALETTE, WORLD } from './config.js';
+import { PALETTE, WORLD, REPAIR_PADS } from './config.js';
 
 const STREETS = [];
 for (let i = 0; i < WORLD.streetCount; i += 1) {
@@ -304,6 +304,65 @@ export function createCity(scene, random) {
     group.add(bench);
   }
 
+  // Neon: tall downtown towers get a glowing vertical strip on their south face,
+  // and a few Marina Row shops get one too — the city lights up after dark.
+  const neonColors = [0xff2e88, 0x2ee6ff, 0xffd23c, 0x7cff2e, 0xff7a2e];
+  let neonIdx = 0;
+  for (const b of buildings) {
+    const downtownTower = b.h > 50 && b.z <= -160;
+    const marinaShop = b.h < 30 && b.x >= 160 && b.z >= -80 && b.z <= 160;
+    if (!downtownTower && !marinaShop) continue;
+    if (neonIdx % 2 === 1 && !downtownTower) continue; // not every shop
+    const color = neonColors[neonIdx % neonColors.length];
+    neonIdx += 1;
+    const stripH = downtownTower ? Math.min(b.h * 0.7, 40) : 6;
+    const strip = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, stripH, 0.5),
+      new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.6, roughness: 0.4 }),
+    );
+    strip.position.set(b.x + b.w / 2 - 1.2, stripH / 2 + 3, b.z + b.d / 2 + 0.35);
+    group.add(strip);
+    if (downtownTower) {
+      // A second, shorter strip on the opposite corner for the tall towers.
+      const strip2 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, stripH * 0.55, 0.5),
+        new THREE.MeshStandardMaterial({ color: neonColors[neonIdx % neonColors.length], emissive: neonColors[neonIdx % neonColors.length], emissiveIntensity: 1.6, roughness: 0.4 }),
+      );
+      strip2.position.set(b.x - b.w / 2 + 1.2, (stripH * 0.55) / 2 + 3, b.z + b.d / 2 + 0.35);
+      group.add(strip2);
+    }
+  }
+
+  // Repair pads: flat bays where a damaged car is fixed for cash (main.js does
+  // the repair). A teal pad on the road plus a REPAIR sign on a post.
+  const repairPads = [];
+  const padMat = new THREE.MeshStandardMaterial({ color: 0x1f6f5c, roughness: 0.85 });
+  const padEdgeMat = new THREE.MeshStandardMaterial({ color: 0xffd23c, roughness: 0.7, emissive: 0x8a6d00, emissiveIntensity: 0.4 });
+  for (const pad of REPAIR_PADS) {
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(11, 0.12, 7), padMat);
+    slab.position.set(pad.x, 0.06, pad.z);
+    slab.receiveShadow = true;
+    group.add(slab);
+    for (const dz of [-3.4, 3.4]) {
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(11, 0.14, 0.3), padEdgeMat);
+      edge.position.set(pad.x, 0.07, pad.z + dz);
+      group.add(edge);
+    }
+    const sign = new THREE.Mesh(
+      new THREE.PlaneGeometry(9, 2.2),
+      new THREE.MeshStandardMaterial({ map: makeBillboardTexture('REPAIR $', 0x1f6f5c), roughness: 0.7, side: THREE.DoubleSide }),
+    );
+    sign.position.set(pad.x, 4.4, pad.z - 5.2);
+    group.add(sign);
+    const signPost = new THREE.Mesh(new THREE.BoxGeometry(0.25, 4.4, 0.25), poleMat);
+    signPost.position.set(pad.x - 4, 2.2, pad.z - 5.2);
+    group.add(signPost);
+    const signPost2 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 4.4, 0.25), poleMat);
+    signPost2.position.set(pad.x + 4, 2.2, pad.z - 5.2);
+    group.add(signPost2);
+    repairPads.push({ x: pad.x, z: pad.z, name: pad.name });
+  }
+
   // Marina pier: a wooden deck from the boardwalk out over the water, with posts,
   // a lighthouse at the end, and three boats bobbing beside it.
   const pierMat = new THREE.MeshStandardMaterial({ color: PALETTE.pierWood, roughness: 0.9 });
@@ -331,11 +390,11 @@ export function createCity(scene, random) {
   const lightHouse = new THREE.Group();
   const towerMat = new THREE.MeshStandardMaterial({ color: PALETTE.lighthouse, roughness: 0.8 });
   const stripeMat = new THREE.MeshStandardMaterial({ color: PALETTE.lighthouseStripe, roughness: 0.8 });
-  const tower = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 3, 16, 12), towerMat);
-  tower.position.y = 8;
+  const tower = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 3, 24, 12), towerMat);
+  tower.position.y = 12;
   tower.castShadow = true;
   lightHouse.add(tower);
-  for (const y of [4.5, 10.5]) {
+  for (const y of [6.5, 15]) {
     const band = new THREE.Mesh(new THREE.CylinderGeometry(2.35, 2.5, 2.4, 12), stripeMat);
     band.position.y = y;
     lightHouse.add(band);
@@ -344,15 +403,15 @@ export function createCity(scene, random) {
     new THREE.CylinderGeometry(1.6, 1.6, 2.4, 10),
     new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.4, metalness: 0.5 }),
   );
-  lampRoom.position.y = 17;
+  lampRoom.position.y = 25;
   lightHouse.add(lampRoom);
-  const beamMat = new THREE.MeshBasicMaterial({ color: 0xfff2b0, transparent: true, opacity: 0.5 });
+  const beamMat = new THREE.MeshBasicMaterial({ color: 0xfff2b0, transparent: true, opacity: 0.65 });
   const beam = new THREE.Mesh(new THREE.ConeGeometry(3.2, 26, 12, 1, true), beamMat);
   beam.rotation.z = Math.PI / 2;
-  beam.position.set(14, 17, 0);
+  beam.position.set(14, 25, 0);
   lightHouse.add(beam);
   const beamLight = new THREE.PointLight(0xfff2b0, 0, 90, 1.5);
-  beamLight.position.y = 17;
+  beamLight.position.y = 25;
   lightHouse.add(beamLight);
   lightHouse.position.set(WORLD.pierX, 1.2, WORLD.pierEndZ);
   group.add(lightHouse);
@@ -381,7 +440,7 @@ export function createCity(scene, random) {
 
   scene.add(group);
   return {
-    group, colliders, buildings, streets: STREETS, lights, water,
+    group, colliders, buildings, streets: STREETS, lights, water, repairPads,
     pier: { x: WORLD.pierX, z0: WORLD.pierZ, z1: WORLD.pierEndZ },
     lighthouse: lightHouse,
     lighthouseBeam: beam,

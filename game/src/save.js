@@ -34,6 +34,7 @@ export function writeSave(G) {
       weather: G.weather.weather,
       station: G.audio.stationIndex(),
       minimapZoom: !!G.minimapZoom,
+      stashes: G.collectibles ? G.collectibles.foundIndices() : [],
     };
     window.localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     return true;
@@ -74,6 +75,7 @@ export function applySave(G, data) {
   }
   if (typeof data.station === 'number') G.audio.setStation(data.station);
   if (typeof data.minimapZoom === 'boolean') G.minimapZoom = data.minimapZoom;
+  if (Array.isArray(data.stashes) && G.collectibles) G.collectibles.markFound(data.stashes);
 }
 
 export function clearSave() {

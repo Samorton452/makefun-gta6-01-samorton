@@ -90,6 +90,7 @@ export function createPlayer(scene) {
     wanted: 0,
     stamina: PLAYER.maxStamina,
     exhausted: false,
+    shake: 0, // camera shake 0..1 — kicked by explosions and wrecks, decays fast
     fov: 62, // current camera field of view (kicks up with speed)
   };
 }
@@ -201,6 +202,13 @@ export function updateCamera(player, camera, dt, city, inCar) {
   const cz = target.z - Math.cos(player.camYaw) * Math.cos(pitch) * dist;
   const cy = target.y + Math.sin(pitch) * dist + height * 0.35;
   const desired = new THREE.Vector3(cx, Math.max(0.6, cy), cz);
+  // Camera shake: a decaying random offset after explosions and wrecks.
+  if (player.shake > 0.01) {
+    desired.x += (Math.random() - 0.5) * player.shake * 1.2;
+    desired.y += (Math.random() - 0.5) * player.shake * 0.9;
+    desired.z += (Math.random() - 0.5) * player.shake * 1.2;
+    player.shake = Math.max(0, player.shake - dt * 1.6);
+  }
   camera.position.lerp(desired, 1 - Math.pow(0.0001, dt));
   camera.lookAt(target);
   // FOV widens a little at speed, for a sense of pace.

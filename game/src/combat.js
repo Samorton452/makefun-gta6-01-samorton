@@ -29,12 +29,25 @@ export function createCombat(scene) {
     scene.add(m);
     particles.push({ mesh: m, vel: new THREE.Vector3(), life: 0 });
   }
+  // Skid-mark pool: dark tyre strips laid down while a car drifts, fading out
+  // after a few seconds so the streets remember a chase.
+  const skids = [];
+  const skidGeo = new THREE.PlaneGeometry(0.45, 2.2);
+  for (let i = 0; i < 48; i += 1) {
+    const m = new THREE.Mesh(skidGeo, new THREE.MeshBasicMaterial({ color: 0x141414, transparent: true, opacity: 0 }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.y = 0.05;
+    m.visible = false;
+    scene.add(m);
+    skids.push({ mesh: m, life: 0 });
+  }
   return {
-    scene, flash, flashMat, tracers, particles,
+    scene, flash, flashMat, tracers, particles, skids,
     cooldown: 0,
     reloadTimer: 0,
     tracerIndex: 0,
     partIndex: 0,
+    skidIndex: 0,
     smokeTimer: 0,
   };
 }
@@ -52,11 +65,23 @@ export function spawnParticles(combat, x, y, z, count, color) {
   }
 }
 
+/** Lay one skid mark at a rear wheel while the car drifts. */
+export function spawnSkidMark(combat, x, z, yaw) {
+  const s = combat.skids[combat.skidIndex];
+  combat.skidIndex = (combat.skidIndex + 1) % combat.skids.length;
+  s.mesh.visible = true;
+  s.mesh.position.set(x, 0.05, z);
+  s.mesh.rotation.z = -yaw;
+  s.mesh.material.opacity = 0.75;
+  s.life = 7;
+}
+
 /** A big orange explosion burst for a wrecked car. */
 export function spawnExplosion(combat, x, y, z) {
-  spawnParticles(combat, x, y, z, 26, 0xff7722);
-  spawnParticles(combat, x, y + 0.5, z, 14, 0xffcc33);
-  spawnParticles(combat, x, y, z, 10, 0x555555);
+  spawnParticles(combat, x, y, z, 34, 0xff7722);
+  spawnParticles(combat, x, y + 0.5, z, 20, 0xffcc33);
+  spawnParticles(combat, x, y, z, 14, 0x555555);
+  spawnParticles(combat, x, y + 1.2, z, 10, 0xffe9a0);
 }
 
 function fireTracer(combat, from, to) {
@@ -207,6 +232,14 @@ export function stepCombat(combat, dt) {
       p.mesh.position.addScaledVector(p.vel, dt);
       p.mesh.material.opacity = Math.max(0, p.life * 1.6);
       if (p.life <= 0 || p.mesh.position.y < 0) p.mesh.visible = false;
+    }
+  }
+  // Skid marks fade out over their life.
+  for (const s of combat.skids) {
+    if (s.life > 0) {
+      s.life -= dt;
+      s.mesh.material.opacity = Math.max(0, Math.min(0.75, s.life * 0.15));
+      if (s.life <= 0) s.mesh.visible = false;
     }
   }
 }

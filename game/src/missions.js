@@ -1,5 +1,7 @@
-// Story missions for Solmar Heat v2: ten jobs for the fixer Mara Voss, each a chain of
-// steps with an objective marker, a timer where it matters, and a cash reward.
+// Story missions for Solmar Heat v2.2: twelve jobs — ten for Mara Voss's crew,
+// one for the new fixer Lena Cross (mission 11), and a finale for Mara (12).
+// Each a chain of steps with an objective marker, a timer where it matters,
+// and a cash reward.
 // Step types: enterCar, goto, escape, chase, wait, timed (goto against the clock),
 // survive (hold out at high wanted for N seconds), collect (visit N spots), steal
 // (take a specific car). Timed steps fail when the clock runs out.
@@ -147,6 +149,36 @@ const MISSIONS = [
     steps: [
       { type: 'steal', carType: 'gt', text: 'Steal the Sunset GT at the marina (press E)', onStart: 'heat3' },
       { type: 'goto', target: SPOTS.garage, text: 'Bring the GT to the garage', radius: 10 },
+    ],
+  },
+  {
+    id: 11,
+    title: 'Harbour Heist',
+    giver: 'Lena Cross',
+    brief: 'Lena Cross runs the harbour — and she has a job Mara would never touch. The warehouse vault holds a shipment of uncut stones. Crack it, hold the room while the safe opens, and slip out to the marina before the harbour patrol locks the docks.',
+    steps: [
+      { type: 'goto', target: SPOTS.warehouse, text: 'Reach the warehouse on Marina Row', radius: 10 },
+      { type: 'wait', seconds: 8, text: 'Cracking the vault — hold on...', onStart: 'heat4' },
+      { type: 'escape', target: SPOTS.marina, text: 'Escape to the marina and lose the cops', radius: 10 },
+    ],
+  },
+  {
+    id: 12,
+    title: 'The Last Score',
+    giver: 'Mara Voss',
+    brief: 'One last job, then Mara retires the crew on top. Three vault keys are stashed across town — the bank, the downtown tower and the airport office. Grab all three, then run the GT’s sister car to the garage in 90 seconds while the whole city watches.',
+    steps: [
+      {
+        type: 'collect',
+        targets: [
+          { x: 0, z: -80, text: 'Vault key 1 — the Solmar Trust Bank' },
+          { x: -80, z: -240, text: 'Vault key 2 — the downtown tower' },
+          { x: 240, z: -240, text: 'Vault key 3 — the airport office' },
+        ],
+        text: 'Collect the vault keys (0/3)',
+        radius: 9,
+      },
+      { type: 'timed', target: SPOTS.garage, seconds: 90, text: 'Run to the garage — 90 seconds!', radius: 10, onStart: 'heat3' },
     ],
   },
 ];

@@ -99,8 +99,20 @@ export const WANTED = {
   heliAt: 4,
 };
 
-// One reward per mission, in story order (10 missions in v2).
-export const MISSION_REWARDS = [400, 600, 900, 1200, 2500, 800, 1500, 2000, 3000, 5000];
+// One reward per mission, in story order (12 missions in v2.2).
+export const MISSION_REWARDS = [400, 600, 900, 1200, 2500, 800, 1500, 2000, 3000, 5000, 4000, 6000];
+
+// Hidden stash collectibles: 8 crates hidden around Solmar, $250 each.
+export const STASH_REWARD = 250;
+export const STASH_COUNT = 8;
+
+// Repair pads: park a damaged car on one and it is repaired for cash.
+export const REPAIR_PADS = [
+  { x: -80, z: 80, name: 'Garage' }, // the crew garage, Old Town
+  { x: 80, z: -240, name: 'Downtown Garage' },
+];
+export const REPAIR_RATE = 12; // car health restored per second on a pad
+export const REPAIR_COST_PER_HP = 1.5; // dollars per health point repaired
 
 export const SAVE_KEY = 'solmar-heat-save-v2';
 
